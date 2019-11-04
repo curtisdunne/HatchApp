@@ -8,6 +8,7 @@
 
 import Foundation
 import UIKit
+import CoreLocation
 
 struct ContactData {
     var index: Int 
@@ -15,4 +16,5 @@ struct ContactData {
     var familyName: String?
     var backgroundImage: UIImage?
     var phone: String?
+    var locationDistance: Double?
 }

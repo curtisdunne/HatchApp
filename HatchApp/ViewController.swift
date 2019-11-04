@@ -8,8 +8,9 @@
 
 import UIKit
 import Contacts
+import CoreLocation
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, CLLocationManagerDelegate {
     
     fileprivate let collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
@@ -21,7 +22,9 @@ class ViewController: UIViewController {
     }()
 
     var contactsArray = [ContactData]()
-
+    
+    var locationManageer: CLLocationManager!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -38,10 +41,27 @@ class ViewController: UIViewController {
         fetchAllContacts()
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        getCurrentUserLocation()
+    }
+    
+    func getCurrentUserLocation() {
+        locationManageer = CLLocationManager()
+        locationManageer.delegate = self
+        locationManageer.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManageer.requestAlwaysAuthorization()
+        
+        if CLLocationManager.locationServicesEnabled() {
+            locationManageer.startUpdatingLocation()
+        }
+    }
+    
     func fetchAllContacts() {
         let contactStore = CNContactStore()
         
-        let keysToFetch = [CNContactPhoneNumbersKey, CNContactFormatter.descriptorForRequiredKeys(for: .fullName)] as [Any]
+        let keysToFetch = [CNContactPostalAddressesKey, CNContactPhoneNumbersKey, CNContactFormatter.descriptorForRequiredKeys(for: .fullName)] as [Any]
         let request = CNContactFetchRequest(keysToFetch: keysToFetch as! [CNKeyDescriptor])
         
         var indexCount = 0
@@ -58,6 +78,7 @@ class ViewController: UIViewController {
                 if let number = contact.phoneNumbers.first {
                     contactData.phone = number.value.stringValue
                 }
+                contactData.locationDistance = self.buildContactLocation(contact: contact)
                 
                 self.contactsArray.append(contactData)
             }
@@ -66,6 +87,78 @@ class ViewController: UIViewController {
             print("There was a problem fetching Contacts on your device.")
         }
     }
+    
+    func buildContactLocation(contact: CNContact) -> Double {
+        // for now always using only the first address as a default
+        if let addressString: CNLabeledValue<CNPostalAddress> = contact.postalAddresses.first {
+            return calcContactLocationDistanceFromUserLocation(postalAddress: addressString)
+        } else {
+            return 0
+        }
+    }
+    
+    func calcContactLocationDistanceFromUserLocation(postalAddress: CNLabeledValue<CNPostalAddress>?) -> Double {
+        let geoCoder = CLGeocoder()
+        var coordinate: CLLocation? = nil
+        var distanceInMiles: Double = 0
+
+        if let postalAddress = postalAddress {
+            if let postalAddressString = buildAddressString(postalAddress: postalAddress) {
+                geoCoder.geocodeAddressString(postalAddressString) { (placemarks, error) in
+                    if let error = error {
+                        print("Unable to create a location from given address: \(error).")
+                    } else {
+                        var location: CLLocation?
+                        
+                        if let placemarks = placemarks, placemarks.count > 0 {
+                            location = placemarks.first?.location
+                        }
+                        
+                        if let location = location {
+                            coordinate = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+                            
+                            if let currentUserLocation = self.appDelegate.currentUserLocation {
+                                if let coordinate = coordinate {
+                                    //                                if let distance = coordinate?.distance(from: currentUserLocation) {
+                                    let distanceInMeters = currentUserLocation.distance(from: coordinate)
+                                    print("Distance in meters = \(distanceInMeters)")
+                                    distanceInMiles = distanceInMeters/1609.344
+                                    print("** Distance in miles = \(distanceInMiles)")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return distanceInMiles
+    }
+    
+    func buildAddressString(postalAddress: CNLabeledValue<CNPostalAddress>) -> String? {
+        return postalAddress.value.country + ", " +
+               postalAddress.value.city + ", " +
+               postalAddress.value.street
+    }
+    
+    // MARK - CLLocationDelegate methods
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let userLocation: CLLocation = locations[0] as CLLocation
+        
+        // we only need our User location once....not worrying about updating it yet so stop updating location
+        manager.stopUpdatingLocation()
+        
+        print("User Lattitude = \(userLocation.coordinate.latitude)")
+        print("User Longitude = \(userLocation.coordinate.longitude)")
+
+        // store userer location in appDelegate
+        appDelegate.currentUserLocation = userLocation
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("An Error occurred when attempting to get or compute device location: \(error)")
+    }
+    
 }
 
 extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
@@ -99,3 +192,8 @@ extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDa
     }
 }
 
+extension UIViewController {
+    var appDelegate: AppDelegate {
+        return UIApplication.shared.delegate as! AppDelegate
+    }
+}

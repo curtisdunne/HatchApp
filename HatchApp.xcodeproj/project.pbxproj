@@ -66,7 +66,7 @@
 		352331C4236B6D420012A14F /* HatchApp */ = {
 			isa = PBXGroup;
 			children = (
-				352331E9236C8B720012A14F /* background.jpeg */,
+				352331EB237099FF0012A14F /* Images */,
 				352331DB236B74DA0012A14F /* Fonts */,
 				352331C5236B6D420012A14F /* AppDelegate.swift */,
 				352331C7236B6D420012A14F /* SceneDelegate.swift */,
@@ -96,6 +96,14 @@
 				352331E1236B7EE10012A14F /* ContactDataModel.swift */,
 			);
 			path = DataModels;
+			sourceTree = "<group>";
+		};
+		352331EB237099FF0012A14F /* Images */ = {
+			isa = PBXGroup;
+			children = (
+				352331E9236C8B720012A14F /* background.jpeg */,
+			);
+			path = Images;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

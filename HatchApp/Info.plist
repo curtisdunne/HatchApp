@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>HatchApp needs your location</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HatchApp needs your location</string>
 	<key>NSContactsUsageDescription</key>
 	<string>HatchApp needs access to your contacts to do its magic!</string>
 	<key>UIAppFonts</key>
