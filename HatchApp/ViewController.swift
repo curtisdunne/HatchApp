@@ -49,9 +49,10 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
         spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
         
-        fetchAllContacts()
-        
-        spinner.stopAnimating()
+        fetchAllContacts { (error) in
+            self.collectionView.reloadData()
+            self.spinner.stopAnimating()
+        }
     }
     
     func getCurrentUserLocation() {
@@ -65,7 +66,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         }
     }
     
-    func fetchAllContacts() {
+    func fetchAllContacts(fetchCompletionHandler: @escaping (Error?) -> Void) {
         DispatchQueue.global().async {
             let contactStore = CNContactStore()
             
@@ -94,7 +95,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                         self.contactsArray.append(contactData)
                         
                         DispatchQueue.main.async {
-                            self.collectionView.reloadData()
+                            fetchCompletionHandler(nil)
                         }
                     })
                 }
