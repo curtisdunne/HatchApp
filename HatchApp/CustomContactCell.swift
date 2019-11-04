@@ -50,7 +50,6 @@ class CustomContactCell: UICollectionViewCell {
         
         contentView.addSubview(distanceLabel)
         distanceLabel.textColor = UIColor(named: "chili")
-        distanceLabel.text = "200 miles away."
         distanceLabel.font = UIFont(name: "Handlee-Regular", size: 18)
         
         contentView.addSubview(msgButton)
@@ -68,6 +67,10 @@ class CustomContactCell: UICollectionViewCell {
     
     func setNameLabelText(text: String) {
         self.nameLabel.text = text
+    }
+    
+    func setDistanceText(text: String) {
+        self.distanceLabel.text = text + " Miles Away."
     }
     
     @objc private func messageAction(sender: UIButton) {

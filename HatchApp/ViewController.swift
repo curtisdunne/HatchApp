@@ -25,11 +25,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     var locationManageer: CLLocationManager!
     
+    var spinner = UIActivityIndicatorView(style: .whiteLarge)
+        
     override func viewDidLoad() {
         super.viewDidLoad()
         
         collectionView.delegate = self
         collectionView.dataSource = self
+        
+        spinner.translatesAutoresizingMaskIntoConstraints = false
         
         view.addSubview(collectionView)
         collectionView.backgroundColor = UIColor(named: "herb")
@@ -37,14 +41,11 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10).isActive = true
         collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10).isActive = true
         collectionView.heightAnchor.constraint(equalToConstant: view.frame.height - 80).isActive = true
-        
-        fetchAllContacts()
-    }
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
+
         getCurrentUserLocation()
+
+        fetchAllContacts()
+        
     }
     
     func getCurrentUserLocation() {
@@ -66,47 +67,52 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         
         var indexCount = 0
         
+        spinner.startAnimating()
+        view.addSubview(spinner)
+        spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
+        
         do {
             try contactStore.enumerateContacts(with: request) { (contact, stop) in
-                var contactData = ContactData(index: indexCount)
+                self.buildContactLocation(contact: contact, locationCompletionHandler: { distance, error in
+                    var contactData = ContactData(index: indexCount)
 
-                indexCount += 1
-                contactData.givenName = contact.givenName
-                contactData.familyName = contact.familyName
-                contactData.backgroundImage = #imageLiteral(resourceName: "background.jpeg")
-                // getting only first mobile phone number if one exists
-                if let number = contact.phoneNumbers.first {
-                    contactData.phone = number.value.stringValue
-                }
-                contactData.locationDistance = self.buildContactLocation(contact: contact)
-                
-                self.contactsArray.append(contactData)
+                    indexCount += 1
+                    contactData.givenName = contact.givenName
+                    contactData.familyName = contact.familyName
+                    contactData.backgroundImage = #imageLiteral(resourceName: "background.jpeg")
+                    // getting only first mobile phone number if one exists
+                    if let number = contact.phoneNumbers.first {
+                        contactData.phone = number.value.stringValue
+                    }
+                    
+                    if let distance = distance {
+                        contactData.locationDistance = distance
+                    }
+                    self.contactsArray.append(contactData)
+                    
+                    DispatchQueue.main.async {
+                        self.collectionView.reloadData()
+                    }
+                })
             }
-            print(self.contactsArray)
         } catch {
             print("There was a problem fetching Contacts on your device.")
         }
     }
     
-    func buildContactLocation(contact: CNContact) -> Double {
+    func buildContactLocation(contact: CNContact, locationCompletionHandler: @escaping (Double?, Error?) -> Void) {
         // for now always using only the first address as a default
-        if let addressString: CNLabeledValue<CNPostalAddress> = contact.postalAddresses.first {
-            return calcContactLocationDistanceFromUserLocation(postalAddress: addressString)
-        } else {
-            return 0
-        }
-    }
-    
-    func calcContactLocationDistanceFromUserLocation(postalAddress: CNLabeledValue<CNPostalAddress>?) -> Double {
-        let geoCoder = CLGeocoder()
-        var coordinate: CLLocation? = nil
-        var distanceInMiles: Double = 0
+        if let postalAddress: CNLabeledValue<CNPostalAddress> = contact.postalAddresses.first {
+            let geoCoder = CLGeocoder()
+            var coordinate: CLLocation? = nil
+            var distanceInMiles: Double = 0
 
-        if let postalAddress = postalAddress {
             if let postalAddressString = buildAddressString(postalAddress: postalAddress) {
                 geoCoder.geocodeAddressString(postalAddressString) { (placemarks, error) in
                     if let error = error {
                         print("Unable to create a location from given address: \(error).")
+                        locationCompletionHandler(nil, error)
                     } else {
                         var location: CLLocation?
                         
@@ -119,19 +125,26 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                             
                             if let currentUserLocation = self.appDelegate.currentUserLocation {
                                 if let coordinate = coordinate {
-                                    //                                if let distance = coordinate?.distance(from: currentUserLocation) {
                                     let distanceInMeters = currentUserLocation.distance(from: coordinate)
-                                    print("Distance in meters = \(distanceInMeters)")
                                     distanceInMiles = distanceInMeters/1609.344
-                                    print("** Distance in miles = \(distanceInMiles)")
+                                    locationCompletionHandler(distanceInMiles.rounded(toPlaces: 1), nil)
+                                } else {
+                                    locationCompletionHandler(nil, nil)
                                 }
+                            } else {
+                                locationCompletionHandler(nil, nil)
                             }
+                        } else {
+                            locationCompletionHandler(nil, nil)
                         }
                     }
                 }
+            } else {
+                locationCompletionHandler(nil, nil)
             }
+        } else {
+            locationCompletionHandler(nil, nil)
         }
-        return distanceInMiles
     }
     
     func buildAddressString(postalAddress: CNLabeledValue<CNPostalAddress>) -> String? {
@@ -174,6 +187,8 @@ extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDa
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "Cell", for: indexPath) as! CustomContactCell
         cell.data = self.contactsArray[indexPath.item]
         cell.setNameLabelText(text: buildFullName(contactData: self.contactsArray[indexPath.item]) ?? "Unknown")
+        
+        cell.setDistanceText(text: cell.data?.locationDistance?.description ?? "Unknown ")
         return cell 
     }
     
@@ -186,14 +201,21 @@ extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDa
             }
         } else if let familyName = contactData.familyName {
             return familyName
+        } else {
+            return "Unknown Name"
         }
-        
-        return "Unknown Name"        
     }
 }
 
 extension UIViewController {
     var appDelegate: AppDelegate {
         return UIApplication.shared.delegate as! AppDelegate
+    }
+}
+
+extension Double {
+    func rounded(toPlaces places:Int) -> Double {
+        let divisor = pow(10.0, Double(places))
+        return (self * divisor).rounded() / divisor
     }
 }
