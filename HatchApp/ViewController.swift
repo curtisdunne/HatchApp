@@ -44,8 +44,14 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
 
         getCurrentUserLocation()
 
+        spinner.startAnimating()
+        view.addSubview(spinner)
+        spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
+        
         fetchAllContacts()
         
+        spinner.stopAnimating()
     }
     
     func getCurrentUserLocation() {
@@ -60,44 +66,41 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     }
     
     func fetchAllContacts() {
-        let contactStore = CNContactStore()
-        
-        let keysToFetch = [CNContactPostalAddressesKey, CNContactPhoneNumbersKey, CNContactFormatter.descriptorForRequiredKeys(for: .fullName)] as [Any]
-        let request = CNContactFetchRequest(keysToFetch: keysToFetch as! [CNKeyDescriptor])
-        
-        var indexCount = 0
-        
-        spinner.startAnimating()
-        view.addSubview(spinner)
-        spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
-        spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
-        
-        do {
-            try contactStore.enumerateContacts(with: request) { (contact, stop) in
-                self.buildContactLocation(contact: contact, locationCompletionHandler: { distance, error in
-                    var contactData = ContactData(index: indexCount)
+        DispatchQueue.global().async {
+            let contactStore = CNContactStore()
+            
+            let keysToFetch = [CNContactPostalAddressesKey, CNContactPhoneNumbersKey, CNContactFormatter.descriptorForRequiredKeys(for: .fullName)] as [Any]
+            let request = CNContactFetchRequest(keysToFetch: keysToFetch as! [CNKeyDescriptor])
+            
+            var indexCount = 0
+            
+            do {
+                try contactStore.enumerateContacts(with: request) { (contact, stop) in
+                    self.buildContactLocation(contact: contact, locationCompletionHandler: { distance, error in
+                        var contactData = ContactData(index: indexCount)
 
-                    indexCount += 1
-                    contactData.givenName = contact.givenName
-                    contactData.familyName = contact.familyName
-                    contactData.backgroundImage = #imageLiteral(resourceName: "background.jpeg")
-                    // getting only first mobile phone number if one exists
-                    if let number = contact.phoneNumbers.first {
-                        contactData.phone = number.value.stringValue
-                    }
-                    
-                    if let distance = distance {
-                        contactData.locationDistance = distance
-                    }
-                    self.contactsArray.append(contactData)
-                    
-                    DispatchQueue.main.async {
-                        self.collectionView.reloadData()
-                    }
-                })
+                        indexCount += 1
+                        contactData.givenName = contact.givenName
+                        contactData.familyName = contact.familyName
+                        contactData.backgroundImage = #imageLiteral(resourceName: "background.jpeg")
+                        // getting only first mobile phone number if one exists
+                        if let number = contact.phoneNumbers.first {
+                            contactData.phone = number.value.stringValue
+                        }
+                        
+                        if let distance = distance {
+                            contactData.locationDistance = distance
+                        }
+                        self.contactsArray.append(contactData)
+                        
+                        DispatchQueue.main.async {
+                            self.collectionView.reloadData()
+                        }
+                    })
+                }
+            } catch {
+                print("There was a problem fetching Contacts on your device.")
             }
-        } catch {
-            print("There was a problem fetching Contacts on your device.")
         }
     }
     
