@@ -66,7 +66,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         }
     }
     
-    func fetchAllContacts(fetchCompletionHandler: @escaping (Error?) -> Void) {
+    func fetchAllContacts(fetchCompletionHandler: @escaping (Error?) -> ()) {
         DispatchQueue.global().async {
             let contactStore = CNContactStore()
             
@@ -101,6 +101,10 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                 }
             } catch {
                 print("There was a problem fetching Contacts on your device.")
+            }
+            
+            DispatchQueue.main.async {
+                fetchCompletionHandler(nil)
             }
         }
     }
@@ -188,11 +192,15 @@ extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDa
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "Cell", for: indexPath) as! CustomContactCell
+        cell.parentViewController = self
         cell.data = self.contactsArray[indexPath.item]
         cell.setNameLabelText(text: buildFullName(contactData: self.contactsArray[indexPath.item]) ?? "Unknown")
         
         cell.setDistanceText(text: cell.data?.locationDistance?.description ?? "Unknown ")
+        cell.setMessageStatus()
+        
         return cell 
     }
     

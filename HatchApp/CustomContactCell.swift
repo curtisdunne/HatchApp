@@ -7,8 +7,9 @@
 //
 
 import UIKit
+import MessageUI
 
-class CustomContactCell: UICollectionViewCell {
+class CustomContactCell: UICollectionViewCell, MFMessageComposeViewControllerDelegate {
     
     var data: ContactData? {
         didSet {
@@ -16,6 +17,8 @@ class CustomContactCell: UICollectionViewCell {
             bg.image = data.backgroundImage
         }
     }
+    
+    var parentViewController: UIViewController?
     
     fileprivate let bg: UIImageView = {
         let imgView = UIImageView()
@@ -29,9 +32,9 @@ class CustomContactCell: UICollectionViewCell {
     
     fileprivate let nameLabel: UILabel = UILabel(frame: CGRect(x: 10, y: 10, width: 250, height: 40))
     
-    fileprivate let distanceLabel: UILabel = UILabel(frame: CGRect(x: 10, y: 40, width: 250, height: 40))
+    fileprivate let distanceLabel: UILabel = UILabel(frame: CGRect(x: 10, y: 50, width: 250, height: 40))
     
-    fileprivate let msgButton: UIButton = UIButton(frame: CGRect(x: 20, y: 100, width: 200, height: 50))
+    fileprivate let msgButton: UIButton = UIButton(frame: CGRect(x: 20, y: 150, width: 200, height: 50))
     
     override init(frame: CGRect) {
         super.init(frame: .zero)
@@ -55,6 +58,7 @@ class CustomContactCell: UICollectionViewCell {
         contentView.addSubview(msgButton)
         msgButton.setTitleColor(.black, for: .normal)
         msgButton.backgroundColor = UIColor(named: "herb")
+        
         msgButton.setTitle("Send a Message", for: .normal)
         msgButton.titleLabel?.font = UIFont(name: "Handlee-Regular", size: 22)
         msgButton.addTarget(self, action: #selector(messageAction), for: UIControl.Event.touchUpInside)
@@ -73,12 +77,45 @@ class CustomContactCell: UICollectionViewCell {
         self.distanceLabel.text = text + " Miles Away."
     }
     
+    func setMessageStatus() {
+        if let phone = data?.phone {
+            if phone.isEmpty {
+                msgButton.backgroundColor = UIColor(named: "lightGray")
+                msgButton.isEnabled = false
+            } else {
+                msgButton.backgroundColor = UIColor(named: "herb")
+                msgButton.isEnabled = true
+            }
+        }
+    }
+    
+    func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
+        if let vc = self.parentViewController {
+            vc.dismiss(animated: true, completion: nil)
+        }
+    }
+    
     @objc private func messageAction(sender: UIButton) {
+        if !MFMessageComposeViewController.canSendText() {
+            print("SMS Services are not currently available")
+        }
+
         if let data = self.data {
-            print("message button was tapped for cell # \(data.index)")
-            
             if let phone = data.phone {
-                print("Sending a text message to \(phone)")
+                let composeVC = MFMessageComposeViewController()
+                composeVC.messageComposeDelegate = self
+                composeVC.recipients = [phone]
+                composeVC.body = "Hello from the HatchApp"
+                
+                if let vc = self.parentViewController {
+                    vc.present(composeVC, animated: true, completion: nil)
+                }
+
+                print("message button was tapped for cell # \(data.index)")
+                
+                if let phone = data.phone {
+                    print("Sending a text message to \(phone)")
+                }
             }
         }
     }
