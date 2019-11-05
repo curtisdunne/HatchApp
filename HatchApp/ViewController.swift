@@ -23,13 +23,19 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
 
     var contactsArray = [ContactData]()
     
-    var locationManageer: CLLocationManager!
+    var locationManager: CLLocationManager!
     
     var spinner = UIActivityIndicatorView(style: .whiteLarge)
         
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        locationManager = CLLocationManager()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.requestAlwaysAuthorization()
+        getCurrentUserLocation()
+
         collectionView.delegate = self
         collectionView.dataSource = self
         
@@ -42,27 +48,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10).isActive = true
         collectionView.heightAnchor.constraint(equalToConstant: view.frame.height - 80).isActive = true
 
-        getCurrentUserLocation()
-
         spinner.startAnimating()
         view.addSubview(spinner)
         spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
         spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
-        
-        fetchAllContacts { (error) in
-            self.collectionView.reloadData()
-            self.spinner.stopAnimating()
-        }
     }
     
     func getCurrentUserLocation() {
-        locationManageer = CLLocationManager()
-        locationManageer.delegate = self
-        locationManageer.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        locationManageer.requestAlwaysAuthorization()
-        
         if CLLocationManager.locationServicesEnabled() {
-            locationManageer.startUpdatingLocation()
+            locationManager.startUpdatingLocation()
         }
     }
     
@@ -99,12 +93,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                         }
                     })
                 }
+                if indexCount == 0 {
+                    DispatchQueue.main.async {
+                        let alert = UIAlertController(title: "No Contacts Found", message: "Your device does not contain any Contacts", preferredStyle: .alert)
+                        alert.addAction(UIAlertAction(title: "Ok", style: .cancel, handler: nil))
+                        self.present(alert, animated: true, completion: nil)
+                    }
+                }
             } catch {
                 print("There was a problem fetching Contacts on your device.")
-            }
-            
-            DispatchQueue.main.async {
-                fetchCompletionHandler(nil)
             }
         }
     }
@@ -174,12 +171,19 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
 
         // store userer location in appDelegate
         appDelegate.currentUserLocation = userLocation
+        
+        fetchAllContacts { (error) in
+            DispatchQueue.main.async {
+                self.collectionView.reloadData()
+                self.spinner.stopAnimating()
+            }
+        }
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("An Error occurred when attempting to get or compute device location: \(error)")
     }
-    
+
 }
 
 extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDataSource {
